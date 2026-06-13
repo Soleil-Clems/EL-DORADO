@@ -1,0 +1,6 @@
+api:
+  base_url: "https://gutendex.com/books"
+  language: "en"
+  pages: 5
+csv_path: "data/sources/book_reviews_messy.csv"
+db_path: "data/refinery.db"

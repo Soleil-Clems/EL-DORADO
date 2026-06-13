@@ -1,3 +1,4 @@
 data/bronze
 data/silver
 *.db
+.venv
