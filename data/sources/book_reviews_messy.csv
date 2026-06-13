@@ -1,0 +1,17 @@
+book_id,title,my_rating,date_added,reviewer,recommend
+11,Alice's Adventures in Wonderland,5,2024-01-15,Sam,yes
+1342,Pride and Prejudice,4,15/02/2024,sam,YES
+84,Frankenstein,,2024-03-01,Alex,no
+1661,The Adventures of Sherlock Holmes,5,March 5 2024,Alex,Yes
+2701,moby dick,3,2024/04/12,Jordan,
+11,Alice's Adventures in Wonderland,5,2024-01-15,Sam,yes
+98,A Tale of Two Cities,11,2024-05-20,Jordan,maybe
+1080,A Modest Proposal,4,,Sam,y
+   1232 ,  The Prince  ,2,2024-06-01,Chris,no
+74,The Adventures of Tom Sawyer,-1,07-15-2024,,yes
+1260,Jane Eyre,4,2024-13-45,Chris,no
+,Unknown Book,3,2024-08-01,Sam,no
+345,Dracula,5,2024-09-10,alex,YES
+345,Dracula,5,2024-09-10,Alex,yes
+2542,A Doll's House,4,2024/10/02,Jordan,n
+1400,Great Expectations,,2024-11-11,Sam,yes
