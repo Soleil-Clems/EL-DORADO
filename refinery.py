@@ -6,6 +6,14 @@ import logging
 from time import sleep
 import pandas as pd
 import csv
+from dateutil import parser
+
+def is_valid_date_flexible(date_string):
+    try:
+        parser.parse(date_string)
+        return True
+    except (ValueError, OverflowError):
+        return False
 
 with open("config.yaml") as f:
     config = yaml.safe_load(f)
@@ -85,7 +93,7 @@ def transform():
     data = pd.read_csv(config["bronze_path"]+"/reviews.csv",  encoding='utf-8')
     df = pd.DataFrame(data)
     df.drop_duplicates(inplace=True)
-    # df["date_added"] = pd.to_datetime(df["date_added"], format="mixed")
+    
     #dropna for removing empty values or NA values
     df.dropna(inplace=True)
 
@@ -112,11 +120,11 @@ def transform():
         if df.loc[i, "my_rating"] > 5 or df.loc[i, "my_rating"]< 1 :
             df.drop(i, inplace=True)
 
+    for i in df.index:
+        if not is_valid_date_flexible(df.loc[i, "date_added"]):
+            df.drop(i, inplace = True)
 
-    
-    
-    print(df.to_string())
-    return "transform"
+    return df
 
 
 
