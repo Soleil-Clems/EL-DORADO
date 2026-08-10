@@ -1,16 +1,18 @@
-import sys
+import sys, os, shutil
 import requests
 import yaml
 import json
-import traceback
 import logging
 from time import sleep
+import pandas as pd
+import csv
 
 with open("config.yaml") as f:
-  config = yaml.safe_load(f)
-  
-books=[]
+    config = yaml.safe_load(f)
+
+books = []
 option = sys.argv[1]
+
 
 def extract():
     for page in range(1, config["api"]["pages"] + 1):
@@ -21,7 +23,7 @@ def extract():
             try:
                 r = requests.get(
                     f"{config['api']['base_url']}/?language={config['api']['language']}&page={page}",
-                    timeout=30
+                    timeout=30,
                 )
                 r.raise_for_status()
                 data = r.json()
@@ -35,7 +37,7 @@ def extract():
 
             except requests.exceptions.HTTPError as e:
                 logging.error(f"HTTP error page {page}: {e}")
-                break 
+                break
 
             except Exception as e:
                 logging.error(f"Unknown error page {page}: {e}")
@@ -49,31 +51,83 @@ def extract():
         for result in data.get("results", []):
             authors = result.get("authors", [])
 
-            author = authors[0] if authors else {
-                "name": None,
-                "birth_year": None,
-                "death_year": None,
-            }
+            author = (
+                authors[0]
+                if authors
+                else {
+                    "name": None,
+                    "birth_year": None,
+                    "death_year": None,
+                }
+            )
 
-            books.append({
-                "id": result["id"],
-                "title": result["title"],
-                "authors_name": author["name"],
-                "authors_birth_year": author["birth_year"],
-                "authors_death_year": author["death_year"],
-                "languages": result["languages"][0],
-                "subjects": result["subjects"],
-                "download_count": result["download_count"],
-            })     
-    with open("data/bronze/api_books.json", "w") as f:
-      json.dump(books, f, ensure_ascii=False, indent=4)
+            books.append(
+                {
+                    "id": result["id"],
+                    "title": result["title"],
+                    "authors_name": author["name"],
+                    "authors_birth_year": author["birth_year"],
+                    "authors_death_year": author["death_year"],
+                    "languages": result["languages"][0],
+                    "subjects": result["subjects"],
+                    "download_count": result["download_count"],
+                }
+            )
+    with open(config["bronze_path"] + "/api_books.json", "w") as f:
+        json.dump(books, f, ensure_ascii=False, indent=4)
+
+    old_filename = os.path.join("data/sources", "book_reviews_messy.csv")
+    new_filename = os.path.join(config["bronze_path"], "reviews.csv")
+    shutil.copy(old_filename, new_filename)
+
+
+def transform():
+    data = pd.read_csv(config["bronze_path"]+"/reviews.csv",  encoding='utf-8')
+    df = pd.DataFrame(data)
+    df.drop_duplicates(inplace=True)
+    # df["date_added"] = pd.to_datetime(df["date_added"], format="mixed")
+    #dropna for removing empty values or NA values
+    df.dropna(inplace=True)
+
+    df["title"] = df["title"].str.strip()
+    df["reviewer"] = df["reviewer"].str.strip()
+    df["reviewer"] = df["reviewer"].str.capitalize()
+    df["recommend"] = df["recommend"].str.lower()
+
+    df["my_rating"]= df["my_rating"].astype(int)
+    df["book_id"]= df["book_id"].astype(int)
+
+    mapping = {
+        "yes": True,
+        "y": True,
+        "n": False,
+        "no": False,
+        "": None,
+    }
+
+    df["recommend"] = df["recommend"].map(mapping)
+    
+
+    for i in df.index:
+        if df.loc[i, "my_rating"] > 5 or df.loc[i, "my_rating"]< 1 :
+            df.drop(i, inplace=True)
+
+
+    
+    
+    print(df.to_string())
+    return "transform"
+
+
+
+    return "reject"
 
 def options(option):
-  match option:
+    match option:
         case "extract":
             extract()
         case "transform":
-            print("transform")
+            print(transform())
         case "load":
             print("load")
         case "stats":
@@ -83,5 +137,6 @@ def options(option):
 
         case _:
             print("This option don't exist")
+
 
 options(option)

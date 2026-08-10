@@ -4,3 +4,6 @@ api:
   pages: 5
 csv_path: "data/sources/book_reviews_messy.csv"
 db_path: "data/refinery.db"
+bronze_path: "data/bronze"
+silver_path: "data/silver"
+gold_path: "data/gold"
