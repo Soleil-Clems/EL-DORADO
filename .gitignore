@@ -2,3 +2,4 @@ data/bronze
 data/silver
 *.db
 .venv
+__pycache__
