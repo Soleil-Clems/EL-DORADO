@@ -92,8 +92,12 @@ def extract():
 def transform():
     data = pd.read_csv(config["bronze_path"]+"/reviews.csv",  encoding='utf-8')
     df = pd.DataFrame(data)
-    df.drop_duplicates(inplace=True)
-    
+    cleaned_df = transform_rewies_csv(df)
+
+    return cleaned_df
+
+
+def transform_rewies_csv(df):
     #dropna for removing empty values or NA values
     df.dropna(inplace=True)
 
@@ -122,13 +126,14 @@ def transform():
 
     for i in df.index:
         if not is_valid_date_flexible(df.loc[i, "date_added"]):
+            print("Not valid", df.loc[i, 'book_id'])
             df.drop(i, inplace = True)
+        else:
+            print("Valid", df.loc[i, 'book_id'])
+
+    df.drop_duplicates(inplace=True)
 
     return df
-
-
-
-    return "reject"
 
 def options(option):
     match option:
