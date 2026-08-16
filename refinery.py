@@ -7,6 +7,8 @@ from time import sleep
 import pandas as pd
 from dateutil import parser
 import numpy as np
+import sqlite3
+import db
 
 
 def is_valid_date_flexible(date_string):
@@ -25,7 +27,7 @@ option = sys.argv[1]
 
 
 def extract():
-    all_books=[]
+    all_books = []
     for page in range(1, config["api"]["pages"] + 1):
 
         data = None
@@ -71,28 +73,25 @@ def extract():
 def transform():
     data = pd.read_csv(config["bronze_path"] + "/reviews.csv", encoding="utf-8")
     df = pd.DataFrame(data)
-    reviews_df= transform_rewies_csv(df)
+    reviews_df = transform_rewies_csv(df)
     api_df = pd.DataFrame(transform_books_json())
     api_df = api_df.rename(columns={"id": "book_id"})
     merged = api_df.merge(reviews_df, on="book_id", how="left")
-    clean_df = merged.replace({np.nan: None})   
+    clean_df = merged.replace({np.nan: None})
     clean_df["author_birth_year"] = clean_df["author_birth_year"].astype("Int64")
     clean_df["author_death_year"] = clean_df["author_death_year"].astype("Int64")
     clean_df["my_rating"] = clean_df["my_rating"].astype("Int64")
     clean_df = clean_df.rename(columns={"title_x": "title"})
     clean_df = clean_df.drop(columns=["title_y"])
     clean_df = clean_df.to_dict(orient="records")
-    with open(config["silver_path"]+"/clean.json", "w") as f:
+    with open(config["silver_path"] + "/clean.json", "w") as f:
         json.dump(clean_df, f, ensure_ascii=False, indent=4)
-
-    
 
 
 def transform_books_json():
-    with open(config["bronze_path"] + "/api_books.json", "r", encoding='utf-8') as f:
+    with open(config["bronze_path"] + "/api_books.json", "r", encoding="utf-8") as f:
         data = json.load(f)
         # print(json.dumps(books, indent=4))
-
 
     for result in data:
         authors = result.get("authors", [])
@@ -106,7 +105,6 @@ def transform_books_json():
                 "death_year": None,
             }
         )
-
 
         books.append(
             {
@@ -122,6 +120,7 @@ def transform_books_json():
         )
 
     return books
+
 
 def transform_rewies_csv(df):
     # dropna for removing empty values or NA values
@@ -161,6 +160,38 @@ def transform_rewies_csv(df):
     return df
 
 
+def load():
+    
+    connection = sqlite3.connect(config["db_path"])
+    db.create_schema(connection)
+    cursor = connection.cursor()
+    with open(config["silver_path"] + "/clean.json", "r", encoding="utf-8") as f:
+        clean_json = json.load(f)
+
+    for book in clean_json:
+        cursor.execute(
+            "INSERT OR REPLACE INTO books VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                book["book_id"],
+                book["title"],
+                book["author"],
+                book["author_birth_year"],
+                book["author_death_year"],
+                book["language"],
+                json.dumps(book["subjects"]),  # <- la liste sérialisée en JSON string
+                book["download_count"],
+                book["my_rating"],
+                book["date_added"],
+                book["reviewer"],
+                book["recommend"],
+            ),
+        )
+
+
+    connection.commit()
+    connection.close()
+
+
 def options(option):
     match option:
         case "extract":
@@ -168,11 +199,13 @@ def options(option):
         case "transform":
             transform()
         case "load":
-            print("load")
+            load()
         case "stats":
             print("stat")
         case "run":
-            return print("run all refinery")
+            extract()
+            transform()
+            load()
 
         case _:
             transform_books_json()
