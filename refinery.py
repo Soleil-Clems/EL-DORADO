@@ -5,8 +5,8 @@ import json
 import logging
 from time import sleep
 import pandas as pd
-import csv
 from dateutil import parser
+import datetime
 
 def is_valid_date_flexible(date_string):
     try:
@@ -124,12 +124,10 @@ def transform_rewies_csv(df):
         if df.loc[i, "my_rating"] > 5 or df.loc[i, "my_rating"]< 1 :
             df.drop(i, inplace=True)
 
-    for i in df.index:
-        if not is_valid_date_flexible(df.loc[i, "date_added"]):
-            print("Not valid", df.loc[i, 'book_id'])
-            df.drop(i, inplace = True)
-        else:
-            print("Valid", df.loc[i, 'book_id'])
+    valid_mask = df["date_added"].apply(is_valid_date_flexible)
+    rejected_dates = df[~valid_mask]  
+    df = df[valid_mask].copy() 
+    df["date_added"] = df["date_added"].apply(lambda d: parser.parse(d).strftime("%Y-%m-%d"))
 
     df.drop_duplicates(inplace=True)
 
