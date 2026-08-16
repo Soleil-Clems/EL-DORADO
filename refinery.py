@@ -6,7 +6,7 @@ import logging
 from time import sleep
 import pandas as pd
 from dateutil import parser
-import datetime
+import numpy as np
 
 
 def is_valid_date_flexible(date_string):
@@ -25,6 +25,7 @@ option = sys.argv[1]
 
 
 def extract():
+    all_books=[]
     for page in range(1, config["api"]["pages"] + 1):
 
         data = None
@@ -32,11 +33,12 @@ def extract():
         for attempt in range(3):
             try:
                 r = requests.get(
-                    f"{config['api']['base_url']}/?language={config['api']['language']}&page={page}",
+                    f"{config['api']['base_url']}/?languages={config['api']['languages']}&page={page}",
                     timeout=30,
                 )
                 r.raise_for_status()
                 data = r.json()
+                all_books.extend(data["results"])
                 break
 
             except requests.exceptions.Timeout:
@@ -59,7 +61,7 @@ def extract():
             continue
 
     with open(config["bronze_path"] + "/api_books.json", "w") as f:
-        json.dump(data["results"], f, ensure_ascii=False, indent=4)
+        json.dump(all_books, f, ensure_ascii=False, indent=4)
 
     old_filename = os.path.join("data/sources", "book_reviews_messy.csv")
     new_filename = os.path.join(config["bronze_path"], "reviews.csv")
@@ -73,7 +75,16 @@ def transform():
     api_df = pd.DataFrame(transform_books_json())
     api_df = api_df.rename(columns={"id": "book_id"})
     merged = api_df.merge(reviews_df, on="book_id", how="left")
-    print(merged)
+    clean_df = merged.replace({np.nan: None})   
+    clean_df["author_birth_year"] = clean_df["author_birth_year"].astype("Int64")
+    clean_df["author_death_year"] = clean_df["author_death_year"].astype("Int64")
+    clean_df["my_rating"] = clean_df["my_rating"].astype("Int64")
+    clean_df = clean_df.rename(columns={"title_x": "title"})
+    clean_df = clean_df.drop(columns=["title_y"])
+    clean_df = clean_df.to_dict(orient="records")
+    with open(config["silver_path"]+"/clean.json", "w") as f:
+        json.dump(clean_df, f, ensure_ascii=False, indent=4)
+
     
 
 
@@ -101,10 +112,10 @@ def transform_books_json():
             {
                 "id": result["id"],
                 "title": result["title"],
-                "authors_name": author["name"],
-                "authors_birth_year": author["birth_year"],
-                "authors_death_year": author["death_year"],
-                "languages": result["languages"][0],
+                "author": author["name"],
+                "author_birth_year": author["birth_year"],
+                "author_death_year": author["death_year"],
+                "language": result["languages"][0],
                 "subjects": result["subjects"],
                 "download_count": result["download_count"],
             }
@@ -155,7 +166,7 @@ def options(option):
         case "extract":
             extract()
         case "transform":
-            print(transform())
+            transform()
         case "load":
             print("load")
         case "stats":
